@@ -1,2 +1,2 @@
 export { ConnectorClient } from './generated/connectorClient';
-export * from './auth';
+export * from './auth2';
