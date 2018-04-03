@@ -10,6 +10,8 @@ const botbuilder = require('botbuilder');
 const restify = require('restify');
 const redux = require('redux');
 const createLogger = require('redux-logger').createLogger;
+const { default: createSagaMiddleware } = require('redux-saga');
+const { call, put, takeEvery, takeLatest } = require('redux-saga/effects');
 
 const conversation = require('./conversation.js');
 
@@ -28,17 +30,60 @@ const lowerCase = store => next => action => {
 }
 
 // Create store
+const sagaMiddleware = createSagaMiddleware();
 const store = redux.createStore(conversation.store, 
     redux.applyMiddleware(
         // our custom Redux middleware
         lowerCase,
+        sagaMiddleware,
         // and a popular piece of Redux middleware from npm
-        createLogger()
+        // createLogger(),
+        store => next => action => {
+            console.log('----- ACTION -----');
+            console.log(action);
+            
+            return next(action);
+        }
 ));
 
+sagaMiddleware.run(mySaga);
+
+function* mySaga() {
+    yield takeLatest("USER_MESSAGE", function* (action) {
+        yield put({
+            type: 'SEND_ACTIVITY',
+            payload: {
+                type: 'message',
+                text: '((((' + action.payload.request.text + '))))',
+                channelId: action.payload.request.channelId,
+                serviceUrl: action.payload.request.serviceUrl,
+                conversation: action.payload.request.conversation,
+                from: { id: 'default-bot', name: 'Bot' },
+                recipient: action.payload.request.from,
+                replyToId: action.payload.request.id
+            }
+        });
+    });
+
+    yield takeLatest("SEND_ACTIVITY", function* (action) {
+        adapter.sendActivity([action.payload]);
+    });
+}
+  
 // Create adapter
 const adapter = new botbuilder.BotFrameworkAdapter(process.env.MICROSOFT_APP_ID, process.env.MICROSOFT_APP_PASSWORD);
 server.post('/api/messages', (req, res) => {
+    adapter.processRequest(req, res, (context) => {
+        if (context.request.type === 'message') {
+            store.dispatch({ type: 'USER_MESSAGE', payload: { request: context.request } });
+
+            // const luisResult = await callLuis(context.request);
+
+            // if (luisResult.name === 'add to cart') {
+            // store.dispatch({ type: 'ADD_TO_CART' });
+            // }
+        }
+    });
 });
 
 // Redux provides a simple pub-sub model that we can use to help organize our application logic in a decoupled way
@@ -51,18 +96,21 @@ adapter.onReceive = function (activity) {
 
 // tie the store to the adapter
 store.subscribe(() => {
-    const state = store.getState();
-    if (state) {
-        const last = state[state.length - 1];
-        if (last && last.bot) {
-            adapter.post([ last.bot ]);
-        }
-    }
+    // const state = store.getState();
+    // if (state) {
+    //     const last = state[state.length - 1];
+    //     if (last && last.bot) {
+    //         adapter.post([ last.bot ]);
+    //     }
+    // }
+
+    console.log('----- STORE -----');
+    console.log(store.getState());
 });
 
 // and now let's have another source of conversation state change...
 setInterval(() => {
     store.dispatch({ type: 'interval', now: new Date() });
-}, 10000);
+}, 5000);
 
 // and, of course, we might have other aspects of our implementation subscribed to the state

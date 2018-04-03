@@ -9,6 +9,7 @@
     "botbuilder": "^4.0.0-m2.0",
     "redux": "^3.7.2",
     "redux-logger": "^3.0.6",
+    "redux-saga": "^0.16.0",
     "restify": "^6.3.4"
   }
 }

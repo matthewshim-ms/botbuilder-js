@@ -40,7 +40,13 @@ const store = function (state = [], action) {
             if (last && last.bot) {
                 state.push({ bot: Object.assign({}, last.bot, { text: 'The time is: ' + action.now.toUTCString() }) });
             }
+            break;
         }
+
+        case 'USER_MESSAGE':
+            state = state.slice();
+            state.push({ from: 'user', request: action.payload.request });
+            break;
     }
     return state;
 };
